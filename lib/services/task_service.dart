@@ -1,114 +1,106 @@
-import 'package:todo_app/models/task.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../models/task.dart';
 
 class TaskService {
   final List<Task> _tasks = [];
 
   List<Task> get tasks => List.unmodifiable(_tasks);
 
-  Future<void> addTask(Task task) async {
+  void addTask(Task task) {
+    _validateTask(task);
     _tasks.add(task);
-    await saveTasks();
   }
 
-  Future<void> deleteTask(String id) async {
+  void deleteTask(String id) {
     _tasks.removeWhere((task) => task.id == id);
-    await saveTasks();
   }
 
-  Future<void> updateTask(Task updatedTask) async {
+  void updateTask(Task updatedTask) {
     final index = _tasks.indexWhere((task) => task.id == updatedTask.id);
 
-    if (index != -1) {
-      _tasks[index] = updatedTask;
-      await saveTasks();
+    if (index == -1) {
+      throw Exception('Task not found');
     }
+
+    _validateTask(updatedTask);
+    _tasks[index] = updatedTask;
   }
 
-  Future<void> toggleTaskStatus(String id) async {
+  void toggleTaskStatus(String id) {
     final index = _tasks.indexWhere((task) => task.id == id);
 
-    if (index != -1) {
-      _tasks[index] = _tasks[index].toggleStatus();
-      await saveTasks();
+    if (index == -1) {
+      throw Exception('Task not found');
     }
+
+    _tasks[index] = _tasks[index].toggleStatus();
   }
 
-  List<Task> searchTasks(String query) {
-    return _tasks
-        .where(
-          (task) =>
-              task.title.toLowerCase().contains(query.toLowerCase()) ||
-              task.description.toLowerCase().contains(query.toLowerCase()),
-        )
-        .toList();
+  List<Task> search(String query) {
+    final lowerQuery = query.toLowerCase();
+
+    return _tasks.where((task) {
+      return task.title.toLowerCase().contains(lowerQuery) ||
+          task.description.toLowerCase().contains(lowerQuery);
+    }).toList();
   }
 
-  List<Task> filterTask(TaskStatus status) {
+  List<Task> filterByStatus(TaskStatus status) {
     return _tasks.where((task) => task.status == status).toList();
   }
 
-  List<Task> priorityTask(int priority) {
+  List<Task> filterByPriority(TaskPriority priority) {
     return _tasks.where((task) => task.priority == priority).toList();
   }
 
-  int get totalTasks {
-    return _tasks.length;
+  List<Task> sortByDate({bool ascending = true}) {
+    final sorted = List<Task>.from(_tasks);
+
+    sorted.sort(
+      (a, b) => ascending ? a.date.compareTo(b.date) : b.date.compareTo(a.date),
+    );
+
+    return sorted;
   }
 
-  int get completedTasks {
-    return _tasks.where((task) => task.status == TaskStatus.completed).length;
+  List<Task> sortByPriority({bool highFirst = true}) {
+    final sorted = List<Task>.from(_tasks);
+
+    sorted.sort(
+      (a, b) => highFirst
+          ? b.priority.index.compareTo(a.priority.index)
+          : a.priority.index.compareTo(b.priority.index),
+    );
+
+    return sorted;
   }
 
-  int get pendingTasks {
-    return _tasks.where((task) => task.status == TaskStatus.pending).length;
+  List<Task> sortByStatus() {
+    final sorted = List<Task>.from(_tasks);
+
+    sorted.sort((a, b) => a.status.index.compareTo(b.status.index));
+
+    return sorted;
   }
 
-  int totalPriorityTasks(int priority) {
+  int get totalTasks => _tasks.length;
+
+  int get completedTasks =>
+      _tasks.where((t) => t.status == TaskStatus.completed).length;
+
+  int get pendingTasks =>
+      _tasks.where((t) => t.status == TaskStatus.pending).length;
+
+  int countByPriority(TaskPriority priority) {
     return _tasks.where((task) => task.priority == priority).length;
   }
 
-  List<Task> sortByDate({bool ascending = true}) {
-    List<Task> sortedList = _tasks;
-    sortedList.sort(
-      (a, b) => ascending ? a.date.compareTo(b.date) : b.date.compareTo(a.date),
-    );
-    return sortedList;
-  }
+  void _validateTask(Task task) {
+    if (task.title.trim().isEmpty) {
+      throw Exception('Title cannot be empty');
+    }
 
-  List<Task> sortByPriority({bool ascending = true}) {
-    List<Task> sortedList = _tasks;
-
-    sortedList.sort(
-      (a, b) => ascending ? a.date.compareTo(b.date) : b.date.compareTo(a.date),
-    );
-    return sortedList;
-  }
-
-  Future<void> saveTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final List<String> encodeTasks = _tasks
-        .map((task) => jsonEncode(task.toMap()))
-        .toList();
-
-    await prefs.setStringList("tasks", encodeTasks);
-  }
-
-  Future<void> loadTasks() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final List<String>? storedTasks = prefs.getStringList("tasks");
-
-    if (storedTasks != null) {
-      _tasks.clear();
-
-      for (var task in storedTasks) {
-        final Map<String, dynamic> decodedTasks =
-            jsonDecode(task) as Map<String, dynamic>;
-        _tasks.add(Task.fromMap(decodedTasks));
-      }
+    if (task.description.trim().isEmpty) {
+      throw Exception('Description cannot be empty');
     }
   }
 }

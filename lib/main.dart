@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:todo_app/services/task_service.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final taskService = TaskService();
-  await taskService.loadTasks();
-  runApp(MyApp(taskService: taskService));
+void main() {
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required TaskService taskService});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
